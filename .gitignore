@@ -1,0 +1,24 @@
+# MATLAB autosave and backup files
+*.asv
+*.m~
+*.bak
+
+# Code analyzer and profile data
+*.m.log
+
+# MATLAB app and build artifacts
+*.mlappinstall
+*.mlpkginstall
+*.prj
+
+# Simulink cache and generated code
+slprj/
+*.slxc
+*.autosave
+
+# Octave files
+.oct-hist
+octave-workspace
+
+# Output/figures
+*.fig

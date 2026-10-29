@@ -15,6 +15,25 @@ I_yy = 0.0213; %kgm^2
 I_zz = 0.0282; %kgm^2
 k_D = 0.25; %kg/s
 
+states = [x; 
+          y; 
+          z; 
+          x_dot;
+          y_dot;
+          z_dot;
+          phi;
+          theta;
+          psi;
+          p;
+          q;
+          r;
+          alpha;
+          alpha_dot];
+
+inputs = [u_T;
+          u_phi;
+          u_theta;
+          u_psi];
 
 %% 15.2.1 coord frames and generalized coordinates
 xi = [x; 
@@ -25,7 +44,7 @@ eta = [phi;
        theta;
        psi]; % roll, pitch, yaw
 
-angular_velocity_body = [p;
+nu = [p;
       q;
       r]; % body angular velocity
 
@@ -38,13 +57,13 @@ W_inv = [1,  sin(phi)*tan(theta), cos(phi)*tan(theta);
          0,  cos(phi),            -sin(phi);
          0,  sin(phi)/cos(theta), cos(phi)/cos(theta)];
 
-eta_dot = W_inv*angular_velocity_body;
+eta_dot = W_inv*nu;
 
-linear_velocity_body = [u;
+nu_b = [u;
        v;
        w]; % linear velocity of quadcopter
 
-xi_dot = R_body_to_inertial * linear_velocity_body;
+xi_dot = R_body_to_inertial * nu_b;
 
 %% 15.2.3 Force Model
 F_g = [0;
@@ -60,9 +79,9 @@ F_thrust_inertial_coords = R_body_to_inertial * F_thrust;
 F_D = -k_D * [x_dot;y_dot;z_dot]; %linear drag
 
 %% 15.2.4
-tau_body = [u_phi;
-            u_theta;
-            u_psi];
+tau = [u_phi;
+       u_theta;
+       u_psi];
 
 omega_1;
 omega_2;

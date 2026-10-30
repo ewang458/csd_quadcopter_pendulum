@@ -14,6 +14,7 @@ I_xx = 0.0213; %kgm^2
 I_yy = 0.0213; %kgm^2
 I_zz = 0.0282; %kgm^2
 k_D = 0.25; %kg/s
+M = m+m_p;
 
 states = [x; 
           y; 

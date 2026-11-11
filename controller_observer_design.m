@@ -17,7 +17,7 @@ k_D = 0.25; %kg/s
 M = m+m_p;
 
 %% A linearized state matrix (phase 1)
-Avv = -(k_D/m) * eye(3);
+Avv = diag([-k_D/m, -k_D/m, -k_D/M]);
 Av_eta = [ 0, (M*g) / m,  0;
          -(M*g)/m,   0,   0;
              0,      0,   0];
@@ -53,11 +53,8 @@ B_sys(10:12, :) = B_nu;
 
 %% C & D matrix
 measured_indices = [1, 2, 3, 7, 8, 9, 10, 11, 12, 13];
-C_sys = zeros(10, 14);
-for idx = 1:length(measured_indices)
-    C_sys(idx, measured_indices(idx)) = 1;
-end
-D_sys = zeros(10, 4);
+C_sys = eye(14);
+D_sys = 0;
 
 %% controllability and rank
 rank_ctrb = rank(ctrb(A_sys, B_sys));
@@ -69,29 +66,37 @@ disp('Observability Rank:');
 disp(rank_obsv);
 
 %% LQR for linearized controller design, kalman for observer (phase 2)
-Q = diag([10,  10,  10,   ...  % x, y, z
-          10,   10,   10,    ...  % x_dot, y_dot, z_dot
+Q = diag([10,  10,  20,   ...  % x, y, z
+          2,   2,  2,    ...  % x_dot, y_dot, z_dot
           50,  50,  10,   ...  % phi, theta, psi
-          10,  10,  10,    ...  % p, q, r
-          10, 10         ...  % alpha, alpha_dot
-          ]); % tunable
+          5,  5,  10,    ...  % p, q, r
+          150, 20         ...  % alpha, alpha_dot
+          ]); % tunable!
 
-% R penalizes control inputs
+% R penalizes control inputs, tunable!
 R = diag([0.1, 1, 1, 1]); % delta_u_T, u_phi, u_theta, u_psi
 
 K = lqr(A_sys, B_sys, Q, R);
+
+G = eye(14);
+B_aug = [B_sys, G];
+D_aug = [D_sys, zeros(10, 14)];
+
 Q_obs = eye(14);
+Q_obs(13, 13) = 100;
+Q_obs(14, 14) = 50;
 R_obs = 0.01 * eye(10);
-sys_augmented = ss(A_sys, B_aug_c, C_sys, D_aug_c);
-[kalmf_linear, L_obs, P_linear] = kalman(sys_augmented, Q_obs, R_obs);
+sys_augmented = ss(A_sys, B_aug, C_sys, D_aug);
+
+[kalmf_linear, L_obs, P_linear] = kalman(sys_augmented, Q_obs, R_obs, [], 1:10, 1:4);
 
 %% discretized controller and observer (phase 3)
 Ts = 0.02; % 50hz as per pdf
 G = eye(14);
-sys_augmented_discrete = c2d(sys_c, Ts, 'zoh');
+sys_augmented_discrete = c2d(sys_augmented, Ts, 'zoh');
 
 A_d = sys_augmented_discrete.A;
-B_d = sys_augmented_discrete.B;
+B_d = sys_augmented_discrete.B(:, 1:4);
 C_d = sys_augmented_discrete.C;
 
 K_discrete = dlqr(A_d, B_d, Q, R);

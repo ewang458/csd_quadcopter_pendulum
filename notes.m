@@ -107,5 +107,7 @@ F_p = m_p * (l*alpha_dot^2 - x_p_dotdot*sin(alpha) - z_p_dotdot*cos(alpha) - g*c
 %% actuator 
 u2omega = (1/(4*b*L*k)) * [b*L, 2*b, 0, L*k; b*L, 0, 2*b, -L*k; b*L, -2*b, 0, L*k; b*L, 0, -2*b, -L*k];
 omega2u = [k, k, k, k; L*k, 0, -L*k, 0; 0, L*k, 0, -L*k; b, -b, b, -b];
+
+%%
 [u1;u2;u3;u4] = omega2u * [omega_1^2;omega_2^2;omega_3^2;omega_4^2];
 [omega_1^2;omega_2^2;omega_3^2;omega_4^2] = u2omega * [u1;u2;u3;u4];

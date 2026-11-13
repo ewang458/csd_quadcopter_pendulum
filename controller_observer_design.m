@@ -123,16 +123,15 @@ K_discrete = pinv(B_d) * (A_d - sys_cl_d.A);
 % 3. Discrete Observer via kalman()
 G_d = eye(14);
 B_aug_d = [B_d, G_d];
-D_aug_d = [D_d, zeros(num_meas, 14)];
+D_aug_d = [D_d, zeros(6, 14)];
 sys_augmented_discrete = ss(A_d, B_aug_d, C_d, D_aug_d, Ts);
 
 Q_obs_d = eye(14);
 Q_obs_d(13, 13) = 1e4;
 Q_obs_d(14, 14) = 1e4;
-R_obs_d = 1e-4 * eye(num_meas);
+R_obs_d = 1e-4 * eye(6);
 
-[kalmf_discrete, L_discrete, P_discrete, M_discrete] = ...
-    kalman(sys_augmented_discrete, Q_obs_d, R_obs_d, [], sensors, known_inputs);
+[kalmf_discrete, L_discrete, P_discrete, M_discrete] = kalman(sys_augmented_discrete, Q_obs_d, R_obs_d, [], sensors, known_inputs);
 
 %% --- Stability Sanity Checks ---
 cl_ctrl_poles = eig(A_d - B_d * K_discrete);

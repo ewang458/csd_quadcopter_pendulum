@@ -70,15 +70,15 @@ disp('Observability Rank:');
 disp(rank_obsv);
 
 %% LQR for linearized controller design, kalman for observer (phase 2)
-Q = diag([10,  10,  20,   ...  % x, y, z
+Q = diag([10,  10,  3000,   ...  % x, y, z
           2,   2,  2,    ...  % x_dot, y_dot, z_dot
-          50,  50,  10,   ...  % phi, theta, psi
-          5,  5,  10,    ...  % p, q, r
-          150, 20         ...  % alpha, alpha_dot
+          100,  50,  300,   ...  % phi, theta, psi
+          5,  30,  100,    ...  % p, q, r
+          150, 30         ...  % alpha, alpha_dot
           ]); % tunable!
 
 % R penalizes control inputs, tunable!
-R = diag([0.1, 1, 1, 1]); % delta_u_T, u_phi, u_theta, u_psi
+R = diag([0.1, 30, 30, 30]); % delta_u_T, u_phi, u_theta, u_psi
 
 K = lqr(A_sys, B_sys, Q, R);
 
@@ -88,7 +88,9 @@ D_aug = [D_sys, zeros(6, 14)];
 Q_obs = eye(14);
 Q_obs(13, 13) = 100;
 Q_obs(14, 14) = 50;
+Q_obs(8,8) = 80;
 R_obs = 0.01 * eye(6);
+Q_obs(3,3) = 100;
 
 sys_augmented = ss(A_sys, B_aug, C_sys, D_aug);
 

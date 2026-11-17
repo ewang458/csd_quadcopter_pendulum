@@ -70,27 +70,30 @@ disp('Observability Rank:');
 disp(rank_obsv);
 
 %% LQR for linearized controller design, kalman for observer (phase 2)
-Q = diag([10,  10,  3000,   ...  % x, y, z
+Q = diag([10,  10,  30,   ...  % x, y, z
           2,   2,  2,    ...  % x_dot, y_dot, z_dot
-          100,  50,  300,   ...  % phi, theta, psi
-          5,  30,  100,    ...  % p, q, r
-          150, 30         ...  % alpha, alpha_dot
+          40,  40,  10,   ...  % phi, theta, psi
+          5,  10,  10,    ...  % p, q, r
+          180, 45         ...  % alpha, alpha_dot
           ]); % tunable!
 
-% R penalizes control inputs, tunable!
-R = diag([0.1, 30, 30, 30]); % delta_u_T, u_phi, u_theta, u_psi
+R = diag([0.1, 55, 5, 55]); % delta_u_T, u_phi, u_theta, u_psi
 
 K = lqr(A_sys, B_sys, Q, R);
 
 G = eye(14);
 B_aug = [B_sys, G];
 D_aug = [D_sys, zeros(6, 14)];
-Q_obs = eye(14);
-Q_obs(13, 13) = 100;
-Q_obs(14, 14) = 50;
-Q_obs(8,8) = 80;
+
+Q_obs = diag([ ...
+    10,  10,  10,   ...  % x, y, z
+    100,  10,  10,   ...  % x_dot, y_dot, z_dot
+    10,  10,  10,   ...  % phi, theta, psi
+    10,  100,  10,   ...  % p, q, r
+    300, 400        ...  % alpha, alpha_dot
+    ]);
+
 R_obs = 0.01 * eye(6);
-Q_obs(3,3) = 100;
 
 sys_augmented = ss(A_sys, B_aug, C_sys, D_aug);
 
@@ -98,16 +101,41 @@ sensors = 1:6;
 known_inputs = 1:4;
 [kalmf_linear, L_obs, P_linear] = kalman(sys_augmented, Q_obs, R_obs, [], sensors, known_inputs);
 
+K = lqr(linSys.A, linSys.B, Q, R);
+
+sys_aug_lin = ss(linSys.A, [linSys.B, eye(14)], C_sys, zeros(6, 18));
+[~, L_obs, ~] = kalman(sys_aug_lin, Q_obs, R_obs, [], 1:6, 1:4);
+
+A_sys = linSys.A;
+B_sys = linSys.B;
 %% check
 cl_ctrl_poles_c = eig(A_sys - B_sys * K);
 cl_obs_poles_c  = eig(A_sys - L_obs * C_sys);
 
-fprintf('Max real part of controller poles: %.4f (Must be < 0)\n', max(real(cl_ctrl_poles_c)));
-fprintf('Max real part of observer poles:   %.4f (Must be < 0)\n', max(real(cl_obs_poles_c)));
+fprintf('Max real part of controller poles: %.4f \n', max(real(cl_ctrl_poles_c)));
+fprintf('Max real part of observer poles:   %.4f \n', max(real(cl_obs_poles_c)));
 
+obs_eigs = eig(A_sys - L_obs * C_sys);
+fprintf('Slowest observer pole (real): %.4f (Target: -2 to -5)\n', max(real(obs_eigs)));
+fprintf('Fastest observer pole (real): %.4f (Target: > -30)\n', min(real(obs_eigs)));
+
+A_cl = [A_sys - B_sys*K,       B_sys*K;
+    zeros(14, 14),         A_sys - L_obs*C_sys];
+x0_aug = [zeros(12,1); 0.05; 0;   zeros(12,1); 0.05; 0]; % [x(0); e(0)]
+[t_lin, x_lin] = ode45(@(t,z) A_cl*z, [0 5], x0_aug);
+u_lin = (-K * (x_lin(:, 1:14) - x_lin(:, 15:28))')';
+fprintf('Max linear pitch torque |tau_theta|: %.4f N*m\n', max(abs(u_lin(:,3))));
+[t_lin, z_lin] = ode45(@(t,z) A_cl*z, [0 5], x0_aug);
+x_true_lin = z_lin(:, 1:14);
+x_hat_lin  = x_true_lin - z_lin(:, 15:28);
+u_tot_lin  = (-K * x_hat_lin')' + [M*g, 0, 0, 0];
+omega2_lin = (u2omega * u_tot_lin')';
+
+fprintf('Max squared rotor speed in linear closed-loop: %.0f (Limit: 250000)\n', max(omega2_lin, [], 'all'));
+fprintf('Min squared rotor speed in linear closed-loop: %.0f (Limit: 0)\n', min(omega2_lin, [], 'all'));
 %% discretized controller and observer (phase 3)
 Ts = 0.02;
-% 1. Discretize the physical plant via ZOH
+
 sys_c = ss(A_sys, B_sys, C_sys, D_sys);
 sys_d = c2d(sys_c, Ts, 'zoh');
 
@@ -116,22 +144,17 @@ B_d = sys_d.B;
 C_d = sys_d.C;
 D_d = sys_d.D;
 
-% 2. Discretize the Phase 2 Continuous Controller K via ZOH step-invariance
-%    (Matches the ZOH discrete closed-loop transition to c2d of the continuous closed-loop)
 sys_cl_c = ss(A_sys - B_sys * K, B_sys, C_sys, D_sys);
 sys_cl_d = c2d(sys_cl_c, Ts, 'zoh');
 K_discrete = pinv(B_d) * (A_d - sys_cl_d.A);
 
-% 3. Discrete Observer via kalman()
 G_d = eye(14);
 B_aug_d = [B_d, G_d];
 D_aug_d = [D_d, zeros(6, 14)];
 sys_augmented_discrete = ss(A_d, B_aug_d, C_d, D_aug_d, Ts);
 
-Q_obs_d = eye(14);
-Q_obs_d(13, 13) = 1e4;
-Q_obs_d(14, 14) = 1e4;
-R_obs_d = 1e-4 * eye(6);
+Q_obs_d = Q_obs * Ts;
+R_obs_d = R_obs / Ts;
 
 [kalmf_discrete, L_discrete, P_discrete, M_discrete] = kalman(sys_augmented_discrete, Q_obs_d, R_obs_d, [], sensors, known_inputs);
 
@@ -140,9 +163,8 @@ cl_ctrl_poles = eig(A_d - B_d * K_discrete);
 cl_obs_poles  = eig(A_d - L_discrete * C_d);
 
 fprintf('\n--- Phase 3 Discrete Stability Verification ---\n');
-fprintf('Max discrete controller pole magnitude: %.4f (Must be < 1)\n', max(abs(cl_ctrl_poles)));
-fprintf('Max discrete observer pole magnitude:   %.4f (Must be < 1)\n', max(abs(cl_obs_poles)));
+fprintf('Max discrete controller pole magnitude: %.4f \n', max(abs(cl_ctrl_poles)));
+fprintf('Max discrete observer pole magnitude:   %.4f \n', max(abs(cl_obs_poles)));
 
 assert(max(abs(cl_ctrl_poles)) < 1, 'Discrete controller is unstable!');
 assert(max(abs(cl_obs_poles)) < 1, 'Discrete observer is unstable!');
-disp('SUCCESS: Both ZOH-discretized controller and Kalman observer are stable!');

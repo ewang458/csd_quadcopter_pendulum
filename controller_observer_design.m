@@ -16,8 +16,12 @@ I_zz = 0.0282; %kgm^2
 k_D = 0.25; %kg/s
 M = m+m_p;
 
+%% actuator 
+u2omega = (1/(4*b*L*k)) * [b*L, 2*b, 0, L*k; b*L, 0, 2*b, -L*k; b*L, -2*b, 0, L*k; b*L, 0, -2*b, -L*k];
+omega2u = [k, k, k, k; L*k, 0, -L*k, 0; 0, L*k, 0, -L*k; b, -b, b, -b];
+
 %% A linearized state matrix (phase 1)
-Avv = diag([-k_D/m, -k_D/m, -k_D/M]);
+Avv = diag([-k_D/m, -k_D/m, -k_D/m]);
 Av_eta = [ 0, (M*g) / m,  0;
          -(M*g)/m,   0,   0;
              0,      0,   0];
@@ -71,11 +75,11 @@ disp(rank_obsv);
 
 %% LQR for linearized controller design, kalman for observer (phase 2)
 Q = diag([10,  10,  30,   ...  % x, y, z
-          2,   2,  2,    ...  % x_dot, y_dot, z_dot
-          40,  40,  10,   ...  % phi, theta, psi
-          5,  10,  10,    ...  % p, q, r
-          180, 45         ...  % alpha, alpha_dot
-          ]); % tunable!
+    2,   2,  2,    ...  % x_dot, y_dot, z_dot
+    40,  40,  10,   ...  % phi, theta, psi
+    5,  10,  10,    ...  % p, q, r
+    180, 45         ...  % alpha, alpha_dot
+    ]); % tunable!
 
 R = diag([0.1, 55, 5, 55]); % delta_u_T, u_phi, u_theta, u_psi
 
@@ -100,14 +104,6 @@ sys_augmented = ss(A_sys, B_aug, C_sys, D_aug);
 sensors = 1:6;
 known_inputs = 1:4;
 [kalmf_linear, L_obs, P_linear] = kalman(sys_augmented, Q_obs, R_obs, [], sensors, known_inputs);
-
-K = lqr(linSys.A, linSys.B, Q, R);
-
-sys_aug_lin = ss(linSys.A, [linSys.B, eye(14)], C_sys, zeros(6, 18));
-[~, L_obs, ~] = kalman(sys_aug_lin, Q_obs, R_obs, [], 1:6, 1:4);
-
-A_sys = linSys.A;
-B_sys = linSys.B;
 %% check
 cl_ctrl_poles_c = eig(A_sys - B_sys * K);
 cl_obs_poles_c  = eig(A_sys - L_obs * C_sys);
@@ -134,7 +130,7 @@ omega2_lin = (u2omega * u_tot_lin')';
 fprintf('Max squared rotor speed in linear closed-loop: %.0f (Limit: 250000)\n', max(omega2_lin, [], 'all'));
 fprintf('Min squared rotor speed in linear closed-loop: %.0f (Limit: 0)\n', min(omega2_lin, [], 'all'));
 %% discretized controller and observer (phase 3)
-Ts = 0.02;
+Ts = 0.01;
 
 sys_c = ss(A_sys, B_sys, C_sys, D_sys);
 sys_d = c2d(sys_c, Ts, 'zoh');

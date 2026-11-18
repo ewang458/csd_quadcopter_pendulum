@@ -1,4 +1,4 @@
-%% non-linear state space
+%% linear state space
 function state_dot = lin_state_space(states, inputs, parameters)
     m     = parameters.m;
     m_p    = parameters.m_p;

@@ -58,6 +58,7 @@ xi_dotdot = [x_dotdot; y_dotdot; z_dotdot];
 
 % pendulum dynamics
 alpha_dotdot = (1 / (M * l)) * ( -Fx * c_alpha + Fz * s_alpha + k_D * x_dot * c_alpha - k_D * z_dot * s_alpha );
+%alpha_dotdot = (1/l)*(-x_dotdot*c_alpha - z_dotdot*s_alpha+g*s_alpha);
 
 % assemble state_dot
 state_dot = [xi_dot; xi_dotdot; eta_dot; nu_dot; alpha_dot; alpha_dotdot];

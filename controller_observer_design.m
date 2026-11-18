@@ -21,13 +21,13 @@ u2omega = (1/(4*b*L*k)) * [b*L, 2*b, 0, L*k; b*L, 0, 2*b, -L*k; b*L, -2*b, 0, L*
 omega2u = [k, k, k, k; L*k, 0, -L*k, 0; 0, L*k, 0, -L*k; b, -b, b, -b];
 
 %% A linearized state matrix (phase 1)
-Avv = diag([-k_D/m, -k_D/m, -k_D/m]);
+Avv = diag([-k_D/m, -k_D/m, -k_D/M]);
 Av_eta = [ 0, (M*g) / m,  0;
-         -(M*g)/m,   0,   0;
-             0,      0,   0];
+    -(M*g)/m,   0,   0;
+    0,      0,   0];
 Av_alpha = [-(m_p * g)/m;
-                 0;
-                 0];
+    0;
+    0];
 a_alpha_v   = [k_D / (M * l), 0, 0];
 a_alpha_eta = [0, -g/l, 0];
 

@@ -74,14 +74,18 @@ disp('Observability Rank:');
 disp(rank_obsv);
 
 %% LQR for linearized controller design, kalman for observer (phase 2)
-Q = diag([10,  10,  30,   ...  % x, y, z
-    2,   2,  2,    ...  % x_dot, y_dot, z_dot
-    40,  40,  10,   ...  % phi, theta, psi
-    5,  10,  10,    ...  % p, q, r
-    180, 45         ...  % alpha, alpha_dot
+Q = diag([25.8,  25.8,  41.2,   ...  % x, y, z
+    3.2,   3.2,  44.6,    ...  % x_dot, y_dot, z_dot
+    4.86,  4.86,  26.3,   ...  % phi, theta, psi
+    0.06,  0.12,  0.37,    ...  % p, q, r
+    18.1, 2880         ...  % alpha, alpha_dot
     ]); % tunable!
 
-R = diag([0.1, 55, 5, 55]); % delta_u_T, u_phi, u_theta, u_psi
+R = diag([1.74, 5460, 3.09, 1310]); % delta_u_T, u_phi, u_theta, u_psi
+
+% "optimal"
+Q = diag([44.44   44.44   47.79   3.607   3.607   50.28   7.335   7.335    26.3 0.08601   0.172  0.5304   60.61    6678]);
+R = diag([1.99   563 5.567  1310]);
 
 K = lqr(A_sys, B_sys, Q, R);
 
@@ -96,8 +100,12 @@ Q_obs = diag([ ...
     10,  100,  10,   ...  % p, q, r
     300, 400        ...  % alpha, alpha_dot
     ]);
+Q_obs = 1.42 * Q_obs;
 
 R_obs = 0.01 * eye(6);
+
+%"optimal"
+Q_obs = diag([16.63 16.63 16.63 166.3 16.63 16.63 16.63 16.63 16.63 16.63 166.3 16.63 498.9 665.2]);
 
 sys_augmented = ss(A_sys, B_aug, C_sys, D_aug);
 
@@ -142,7 +150,7 @@ D_d = sys_d.D;
 
 sys_cl_c = ss(A_sys - B_sys * K, B_sys, C_sys, D_sys);
 sys_cl_d = c2d(sys_cl_c, Ts, 'zoh');
-K_discrete = pinv(B_d) * (A_d - sys_cl_d.A);
+K_discrete = dlqr(A_d,B_d,Q*Ts,R*Ts);
 
 G_d = eye(14);
 B_aug_d = [B_d, G_d];
